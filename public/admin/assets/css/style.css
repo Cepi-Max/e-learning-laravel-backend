@@ -1,0 +1,75 @@
+h1{
+    color: blue;
+}
+/* Summernote */
+.note-editor .dropdown-toggle::after {
+    all: unset;
+  }
+  .note-editor .note-dropdown-menu {
+    box-sizing: content-box;
+  }
+  .note-editor .note-modal-footer {
+    box-sizing: content-box;
+  }
+  
+  table tr td img {
+    max-width: 100px;
+    max-height: 100px;
+    object-fit: cover;
+  }
+
+/* Search input group for admin */
+/* Container */
+        .search-container {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        /* Input Style */
+        .search-input {
+            flex: 1;
+            padding: 7px 9px;
+            border: none;
+            outline: none;
+            font-size: 16px;
+        }
+
+        .search-input:focus {
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+        }
+
+        /* Button Style */
+        .search-button {
+            background-color: #000000; /* Green */
+            border: none;
+            color: white;
+            padding: 7px 9px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            cursor: pointer;
+            -webkit-transition-duration: 0.4s; /* Safari */
+            transition-duration: 0.4s;
+        }
+
+        .search-button:hover {
+            background-color: #313131;
+            box-shadow: 40px 12px 16px 40px rgba(0,0,0,0.24),40px 17px 50px 40px rgba(0,0,0,0.19);
+        }
+
+        .search-button i {
+            margin-right: 5px;
+        }
+
+        /* Responsif: Sembunyikan teks "Cari" di layar kecil */
+        @media (max-width: 576px) {
+            .search-button span {
+                display: none;
+            }
+        }
