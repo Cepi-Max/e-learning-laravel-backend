@@ -42,6 +42,39 @@ class DataPadiController extends Controller
         ]);
     }
 
+    public function indexAdmin()
+    {
+        $admin = auth()->user(); // pastikan admin login
+
+        if ($admin->role !== 'admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $dataPadi = DataPadi::with('user')
+            ->whereHas('user', function ($query) use ($admin) {
+                $query->where('lokasi_id', $admin->lokasi_id);
+            })
+            ->where('verifikasi', 'pending')
+            ->get();
+
+        return response()->json($dataPadi);
+    }
+
+    public function verifikasi($id)
+    {
+        $admin = auth()->user();
+        $data = DataPadi::with('user')->findOrFail($id);
+
+        if ($data->lokasi !== $admin->lokasi) {
+            return response()->json(['error' => 'Data bukan wilayah Anda'], 403);
+        }
+
+        $data->verifikasi = 'verified';
+        $data->save();
+
+        return response()->json(['message' => 'Data padi berhasil diverifikasi']);
+    }
+
     /**
      * Display the specified resource.
      */
@@ -87,17 +120,16 @@ class DataPadiController extends Controller
              $fileName = 'default.png';
         }
 
-        $id_author = auth()->user()->id;
+        $user = auth()->user(); 
 
         $datapadi = DataPadi::create([
             'nama' => $request->nama,
             'jumlah_padi' => $request->jumlah_padi,
             'jenis_padi' => $request->jenis_padi,
-            // 'foto_padi' => $fileName,
-            'user_id' => $id_author,
+            'verifikasi' => 'pending',
+            'lokasi' => $user->lokasi,
+            'user_id' => $user->id,
         ]);
-        // dd($id_author);
-              
 
         return response()->json([
             'status' => true,

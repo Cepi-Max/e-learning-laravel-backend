@@ -153,7 +153,6 @@ class OrderController extends Controller
         }
     }
 
-
     public function show($id)
     {
         // >>> PERBAIKAN: Tambahkan .user untuk memuat relasi penjual dari produk

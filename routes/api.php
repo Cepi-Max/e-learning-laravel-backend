@@ -40,6 +40,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->name('api.')->group(function() 
     Route::apiResource('datapadi', DataPadiController::class);
     Route::post('datapadi/update/{id}', [DataPadiController::class, 'update']);
     
+    Route::get('admin/datapadi', [DataPadiController::class, 'indexAdmin']);
+    Route::post('admin/verifikasi-datapadi', [DataPadiController::class, 'verifikasi']);
+    
     Route::apiResource('product', ProductController::class);
 
     Route::apiResource('cart', CartApiController::class);

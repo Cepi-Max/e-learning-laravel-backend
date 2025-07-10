@@ -18,7 +18,8 @@ return new class extends Migration
             $table->string('nama');
             $table->decimal('jumlah_padi');
             $table->string('jenis_padi')->nullable();
-            $table->date('verifikasi')->nullable();
+            $table->string('verifikasi')->default('pending');
+            $table->string('lokasi'); 
             $table->string('foto_padi')->nullable();
             $table->timestamps();
         });
