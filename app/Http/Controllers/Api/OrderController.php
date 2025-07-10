@@ -10,6 +10,7 @@ use App\Models\Ricesales\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Midtrans\Snap;
 
 class OrderController extends Controller
@@ -64,94 +65,94 @@ class OrderController extends Controller
             return response()->json(['error' => $validator->errors()], 422);
         }
 
-        $total_price = 0;
-        foreach ($request->items as $item) {
-            $product = Product::find($item['product_id']);
-            // Pastikan product ditemukan
-            if (!$product) {
-                return response()->json(['error' => 'Product with ID ' . $item['product_id'] . ' not found.'], 404);
-            }
-            $total_price += $product->price * $item['quantity'];
-        }
-
-        $order = Order::create([
-            'user_id' => $request->user_id,
-            'order_code' => 'ORD-' . now()->format('YmdHis'),
-            'total_price' => $total_price,
-            'status' => 'pending'
-        ]);
-
-        foreach ($request->items as $item) {
-            $product = Product::find($item['product_id']);
-            OrderItem::create([
-                'order_id' => $order->id,
-                'product_id' => $item['product_id'],
-                'quantity' => $item['quantity'],
-                'price' => $product->price,
-                'subtotal' => $product->price * $item['quantity']
-            ]);
-        }
-
-        // ==== HAPUS ITEM CART DI SINI ====
-        $userCart = \App\Models\Ricesales\Cart::where('user_id', $request->user_id)->first();
-        if ($userCart) {
-            // Hapus semua CartItem yang sudah diorder
-            $cartItemProductIds = collect($request->items)->pluck('product_id')->toArray();
-            $userCart->items()->whereIn('product_id', $cartItemProductIds)->delete();
-        }
-
-        // Set your Merchant Server Key
-        \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
-        // Set to Development/Sandbox Environment (default). Set to true for Production Environment (accept real transaction).
-        \Midtrans\Config::$isProduction = config('services.midtrans.is_production');
-        // Set sanitization on (default)
-        \Midtrans\Config::$isSanitized = true;
-        // Set 3DS transaction for credit card to true
-        \Midtrans\Config::$is3ds = true;
-
-        // Ambil data user untuk customer_details
-        $user = \App\Models\User::find($request->user_id);
-        if (!$user) {
-            // Ini seharusnya tidak terjadi karena validator 'exists:users,id'
-            // Tapi baik untuk jaga-jaga
-            return response()->json(['error' => 'User not found for payment details.'], 404);
-        }
-
-        // MIDTRANS TRANSACTION PARAMS
-        $snapPayload = [
-            'transaction_details' => [
-                'order_id' => $order->order_code,
-                'gross_amount' => $total_price,
-            ],
-            'customer_details' => [
-                'first_name' => $user->name, // Menggunakan $user->name
-                'email' => $user->email,     // Menggunakan $user->email
-                'phone' => $user->phone_number, // Tambahkan nomor telepon di Midtrans jika diperlukan
-            ],
-            'enabled_payments' => ['gopay', 'bank_transfer', 'qris'],
-        ];
+        DB::beginTransaction();
 
         try {
-            $snapToken = Snap::getSnapToken($snapPayload);
+            $total_price = 0;
+            $productsToUpdate = [];
 
-            // === BARIS TAMBAHAN UNTUK MENYIMPAN TOKEN MIDTRANS ===
+            // 1. Validasi dan kunci stok produk
+            foreach ($request->items as $item) {
+                $product = Product::lockForUpdate()->findOrFail($item['product_id']);
+
+                if ($product->stock < $item['quantity']) {
+                    throw new \Exception("Stok untuk produk {$product->name} tidak mencukupi.");
+                }
+
+                $total_price += $product->price * $item['quantity'];
+                $productsToUpdate[] = [$product, $item['quantity']];
+            }
+
+            // 2. Buat order
+            $order = Order::create([
+                'user_id' => $request->user_id,
+                'order_code' => 'ORD-' . now()->format('YmdHis'),
+                'total_price' => $total_price,
+                'status' => 'pending'
+            ]);
+
+            // 3. Buat order items dan kurangi stok
+            foreach ($productsToUpdate as [$product, $qty]) {
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $product->id,
+                    'quantity' => $qty,
+                    'price' => $product->price,
+                    'subtotal' => $product->price * $qty
+                ]);
+
+                $product->stock -= $qty;
+                $product->save();
+            }
+
+            // 4. Bersihkan cart (jika ada)
+            $userCart = \App\Models\Ricesales\Cart::where('user_id', $request->user_id)->first();
+            if ($userCart) {
+                $cartItemProductIds = collect($request->items)->pluck('product_id')->toArray();
+                $userCart->items()->whereIn('product_id', $cartItemProductIds)->delete();
+            }
+
+            // 5. Midtrans setup
+            \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
+            \Midtrans\Config::$isProduction = config('services.midtrans.is_production');
+            \Midtrans\Config::$isSanitized = true;
+            \Midtrans\Config::$is3ds = true;
+
+            $user = \App\Models\User::findOrFail($request->user_id);
+
+            $snapPayload = [
+                'transaction_details' => [
+                    'order_id' => $order->order_code,
+                    'gross_amount' => $total_price,
+                ],
+                'customer_details' => [
+                    'first_name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone_number,
+                ],
+                'enabled_payments' => ['gopay', 'bank_transfer', 'qris'],
+            ];
+
+            $snapToken = Snap::getSnapToken($snapPayload);
             $order->midtrans_transaction_token = $snapToken;
             $order->save();
-            // ====================================================
+
+            DB::commit(); // ✅ commit di akhir
 
             return response()->json([
                 'message' => 'Order created',
                 'order' => $order,
-                'snap_token' => $snapToken // Token dikirim ke frontend Flutter
+                'snap_token' => $snapToken
             ], 201);
         } catch (\Exception $e) {
-            // Tangani error jika gagal mendapatkan Snap Token dari Midtrans
+            DB::rollBack();
             return response()->json([
-                'message' => 'Failed to get Midtrans Snap Token',
+                'message' => 'Gagal memproses order',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
+
 
     public function show($id)
     {
