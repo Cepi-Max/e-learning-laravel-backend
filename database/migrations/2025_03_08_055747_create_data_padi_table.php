@@ -17,7 +17,8 @@ return new class extends Migration
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->string('nama');
             $table->decimal('jumlah_padi');
-            $table->string('jenis_padi');
+            $table->string('jenis_padi')->nullable();
+            $table->date('verifikasi')->nullable();
             $table->string('foto_padi')->nullable();
             $table->timestamps();
         });
