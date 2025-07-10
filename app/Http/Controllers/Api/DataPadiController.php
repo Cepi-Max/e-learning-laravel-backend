@@ -17,14 +17,23 @@ class DataPadiController extends Controller
      */
     public function index(Request $request)
     {
-        // Ambil dari request, kalau tidak ada pakai bulan & tahun sekarang
-        $bulan = $request->input('bulan', now()->month);
-        $tahun = $request->input('tahun', now()->year);
+        // 1. Mulai query builder, JANGAN langsung ambil data
+        $query = DataPadi::query();
 
-        // Ambil data sesuai bulan dan tahun
-        $dataPadi = DataPadi::whereMonth('created_at', $bulan)
-                            ->whereYear('created_at', $tahun)
-                            ->get();
+        // 2. Cek apakah ada input 'bulan' di request
+        if ($request->has('bulan') && !empty($request->input('bulan'))) {
+            // Jika ada, tambahkan filter bulan ke query
+            $query->whereMonth('created_at', $request->input('bulan'));
+        }
+
+        // 3. Cek apakah ada input 'tahun' di request
+        if ($request->has('tahun') && !empty($request->input('tahun'))) {
+            // Jika ada, tambahkan filter tahun ke query
+            $query->whereYear('created_at', $request->input('tahun'));
+        }
+
+        // 4. Eksekusi query (dengan atau tanpa filter) dan ambil hasilnya
+        $dataPadi = $query->get();
 
         return response()->json([
             'status' => true,
@@ -32,8 +41,6 @@ class DataPadiController extends Controller
             'data' => $dataPadi
         ]);
     }
-
-
 
     /**
      * Display the specified resource.
