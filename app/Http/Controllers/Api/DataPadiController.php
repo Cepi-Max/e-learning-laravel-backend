@@ -17,24 +17,32 @@ class DataPadiController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Mulai query builder, JANGAN langsung ambil data
-        $query = DataPadi::query();
-
-        // 2. Cek apakah ada input 'bulan' di request
-        if ($request->has('bulan') && !empty($request->input('bulan'))) {
-            // Jika ada, tambahkan filter bulan ke query
-            $query->whereMonth('created_at', $request->input('bulan'));
+        $user = auth()->user(); // ambil user login
+        $query = DataPadi::with('petani');
+    
+        // Jika user admin DAN admin_view diaktifkan
+        if ($user->role === 'admin') {
+            // Tampilkan hanya data pending yang sesuai lokasi admin
+            $query->where('lokasi', $user->lokasi)
+                  ->where('verifikasi', 'verified');
+        } else if ($user->role === 'petani') {
+            // Tampilkan hanya data pending yang sesuai lokasi admin
+            $query->where('user_id', $user->id)
+                  ->where('verifikasi', 'verified');
+        } else {
+            // Jika ada filter bulan
+            if ($request->filled('bulan')) {
+                $query->whereMonth('created_at', $request->input('bulan'));
+            }
+    
+            // Jika ada filter tahun
+            if ($request->filled('tahun')) {
+                $query->whereYear('created_at', $request->input('tahun'));
+            }
         }
-
-        // 3. Cek apakah ada input 'tahun' di request
-        if ($request->has('tahun') && !empty($request->input('tahun'))) {
-            // Jika ada, tambahkan filter tahun ke query
-            $query->whereYear('created_at', $request->input('tahun'));
-        }
-
-        // 4. Eksekusi query (dengan atau tanpa filter) dan ambil hasilnya
+    
         $dataPadi = $query->get();
-
+    
         return response()->json([
             'status' => true,
             'message' => 'Data berhasil ditemukan',
@@ -55,8 +63,13 @@ class DataPadiController extends Controller
             ->where('verifikasi', 'pending')
             ->get();
 
-        return response()->json($dataPadi);
+        return response()->json([
+            'status' => true,
+            'message' => 'Data berhasil ditemukan',
+            'data' => $dataPadi
+        ]);
     }
+
 
     public function verifikasi($id)
     {
@@ -97,7 +110,6 @@ class DataPadiController extends Controller
         $validator = Validator::make($request->all(),[
             'nama' => 'required',
             'jumlah_padi' => 'required',
-            'jenis_padi' => 'required',
             'foto_padi' => 'extensions:jpg,png',
         ]);
 

@@ -11,7 +11,7 @@ class DataPadi extends Model
     use HasFactory;
     //
     protected $table = 'data_padi';
-    protected $fillable = ['nama', 'user_id', 'jumlah_padi', 'jenis_padi', 'verifikasi', 'latitude', 'longitude', 'foto_padi'];
+    protected $fillable = ['nama', 'user_id', 'jumlah_padi', 'jenis_padi', 'verifikasi', 'lokasi', 'foto_padi'];
     // protected $with = ['author'];
 
     public function petani(): BelongsTo
