@@ -50,10 +50,8 @@ class DataPadiController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $dataPadi = DataPadi::with('user')
-            ->whereHas('user', function ($query) use ($admin) {
-                $query->where('lokasi_id', $admin->lokasi_id);
-            })
+        $dataPadi = DataPadi::with('petani')
+            ->where('lokasi', $admin->lokasi) // lokasi petani cocok dengan lokasi admin
             ->where('verifikasi', 'pending')
             ->get();
 

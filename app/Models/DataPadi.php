@@ -16,7 +16,7 @@ class DataPadi extends Model
 
     public function petani(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
 }
